@@ -3,8 +3,8 @@ import numpy as np
 SIGMA = 0.05
 
 class Trace():
-    def __init__(self,tasktree,id,time):
-        self.tasktree = tasktree
+    def __init__(self,workflow,id,time):
+        self.workflow = workflow
         self.id = id
         self.tasks = []
         self.initial_task = None
@@ -12,7 +12,7 @@ class Trace():
         self.poll_time = time
 
     def get_service(self,task_id):
-        return self.tasktree.app.task_graph.nodes[task_id]["subset"]
+        return self.workflow.app.task_graph.nodes[task_id]["subset"]
 
 class TaskInstance():
     def __init__(self,task,trace,caller=None):
@@ -88,7 +88,3 @@ class TaskInstance():
     def deactivate(self,t):
         self.active = False
         self.poll_time = t
-
-class Process():
-    def __init__(self,service):
-        self.service = service

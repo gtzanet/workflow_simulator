@@ -31,8 +31,8 @@ class Task():
         self.subtasks.append((0.1 * LOADMAX,np.random.random() * MEMMAX,0,))
 
 class Service():
-    def __init__(self,id,cu=None):
-        self.CU = cu
+    def __init__(self,id,node=None):
+        self.node = node
         self.id = id
         self.threads = 1
         self.tasknum = 0
@@ -46,16 +46,16 @@ class Service():
         else:
             #print("STARTING TASK: "+str(task.task.id))
             self.running_tasks.append(task)
-            if self not in self.CU.active_services:
-                self.CU.active_services.append(self)
+            if self not in self.node.active_services:
+                self.node.active_services.append(self)
             q = 0
         self.queue_analytics.append((self.get_queue_size(),t))
         return q
 
     def get_speed(self):
-        total_threads = sum([len(s.running_tasks) for s in self.CU.active_services])
-        power = min(float(self.CU.cpu) / total_threads,1.0)
-        return power * self.CU.node.freq
+        total_threads = sum([len(s.running_tasks) for s in self.node.active_services])
+        power = min(float(self.node.cpu) / total_threads,1.0)
+        return power * self.node.freq
 
     def get_queue_size(self):
         return self.queue.qsize()+len(self.running_tasks)
@@ -67,7 +67,7 @@ class Service():
             self.running_tasks.append(new_task)
         else:
             if len(self.running_tasks) == 0:
-                self.CU.active_services.remove(self)
+                self.node.active_services.remove(self)
             new_task = None
         self.queue_analytics.append((self.queue.qsize()+len(self.running_tasks),t))
         return new_task
@@ -84,16 +84,16 @@ class Service():
         self.running_tasks = []
         self.queue = queue.Queue()
         self.queue_analytics = [(0,0)]
-        if self.CU is not None:
-            self.CU.reset()
+        if self.node is not None:
+            self.node.reset()
 
 class Application():
-    def __init__(self,servicenum=None,treenum=None):
+    def __init__(self,servicenum=None,flownum=None):
         self.id = id
         self.services = []
         self.tasks = []
         self.task_graph = nx.DiGraph()
-        self.tasktrees = []
+        self.workflows = []
 
         # Create services
         if servicenum is None:
@@ -103,12 +103,12 @@ class Application():
             self.services.append(Service(s))
 
         # Generate tasktrees and task graph
-        if treenum is None:
-            treenum = random.choice(range(1,MAXTASKTREES))
-        print("Tasktrees: "+str(treenum))
-        for tree in range(treenum):
-            self.tasktrees.append(TaskTree(self,tree,self.task_graph,self.tasks,servicenum))
-            print(self.tasktrees[-1].nodes)
+        if flownum is None:
+            flownum = random.choice(range(1,MAXTASKTREES))
+        print("Tasktrees: "+str(flownum))
+        for tree in range(flownum):
+            self.workflows.append(Workflow(self,tree,self.task_graph,self.tasks,servicenum))
+            print(self.workflows[-1].nodes)
 
         # Create service graph
         self.service_graph = self.task_graph.copy()
@@ -127,19 +127,19 @@ class Application():
 
     def deploy_services(self,map):
         for s in self.services:
-            s.CU = map[s.id]
+            s.node = map[s.id]
 
     def reset(self,history=None):
         for s in self.services:
             s.reset()
-        for f in self.tasktrees:
+        for f in self.workflows:
             log = history.pop(0) if history is not None else None
             f.reset(log)
 
     def get_history(self):
-        return [tt.trace_log for tt in self.tasktrees]
+        return [f.trace_log for f in self.workflows]
 
-class TaskTree():
+class Workflow():
     def __init__(self,app,id,taskG,tasklist,servicenum,tree=None):
         self.app = app
         self.lam = (random.random()+1) / 2 * MAXLAMBDA

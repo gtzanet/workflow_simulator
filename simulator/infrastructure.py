@@ -1,12 +1,12 @@
-import random
 import logging
 
-class Container():
-    def __init__(self,id,cpu,ram):
+class VirtualMachine():
+    def __init__(self,id,cpu,ram,freq,cluster=None):
         self.id = id
         self.cpu = cpu
         self.ram = ram
-        self.node = None
+        self.freq = freq
+        self.cluster = cluster
         self.reset()
 
     def set_node(self,node):
