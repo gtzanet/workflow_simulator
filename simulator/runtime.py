@@ -32,9 +32,11 @@ class TaskInstance():
     # Executes task up to dt time points with the given cpu speed, starting from point 'start' (completion percentage of task)
     def execute_task(self,speed,start,dt):
         end = start+dt
+        expected_len = max(0, int(end) - int(start))
         remaining_load,_ = self.next_load()
         estim,_ = self.estimation(speed,start)
-        runall = True if estim == end else False
+        # Float arithmetic can make exact equality brittle near second boundaries.
+        runall = abs(estim - end) <= 1e-12
         t = start
         mem = []
         for i,s in zip(range(len(self.task.subtasks)),self.task.subtasks):
@@ -57,7 +59,14 @@ class TaskInstance():
             if dt == 0:
                 break
         if mem == []:
-            mem = (int(start+dt)-int(start)) * [0]
+            mem = expected_len * [0]
+
+        # Guard against off-by-one rounding around integer boundaries.
+        if len(mem) < expected_len:
+            mem += [0] * (expected_len - len(mem))
+        elif len(mem) > expected_len:
+            mem = mem[:expected_len]
+
         return [mm if mm > 0 else 0 for mm in mem]
 
     # Load/operations left until next request/comm_task or the end of the task

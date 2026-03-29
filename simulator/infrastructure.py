@@ -1,12 +1,13 @@
 import logging
 
-class VirtualMachine():
-    def __init__(self,id,cpu,ram,freq,cluster=None):
+class Node():
+    def __init__(self,id,cpu,ram,freq,cluster=None,thread_cpu_overhead=0.0):
         self.id = id
         self.cpu = cpu
         self.ram = ram
         self.freq = freq
         self.cluster = cluster
+        self.thread_cpu_overhead = max(0.0, float(thread_cpu_overhead))
         self.reset()
 
     def set_node(self,node):
@@ -17,7 +18,7 @@ class VirtualMachine():
         self.mem_metric = [0.0]
         self.cpu_metric = [0.0]
 
-class Node():
+class NodeOld():
     def __init__(self,cpu,mem,freq):
         self.cpu = cpu
         self.mem = mem
@@ -26,11 +27,11 @@ class Node():
         self.cpu_metrics = []
         self.mem_metrics = []
 
-    def free_resources(self):
-        used = self.used_resources()
-        return (self.cpu-used[0],self.mem-used[1])
+    def get_free_resources(self):
+        cpu_used,mem_used = self.get_used_resources()
+        return self.cpu-cpu_used,self.mem-mem_used
 
-    def used_resources(self):
+    def get_used_resources(self):
         cpu_used = 0
         mem_used = 0
         for c in self.containers:
@@ -55,7 +56,7 @@ class Node():
         if container in self.containers:
             cpu = container.cpu if cpu is None else cpu
             mem = container.ram if mem is None else mem
-            free = self.free_resources()
+            free = self.get_free_resources()
             if free[0]+container.cpu >= cpu and free[1]+container.ram >= mem:
                 container.cpu = cpu
                 container.ram = mem
