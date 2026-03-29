@@ -1,0 +1,7 @@
+__pycache__
+agents/__pycache__
+simulator/__pycache__
+venv
+.ipynb_checkpoints
+.venv
+training_results
