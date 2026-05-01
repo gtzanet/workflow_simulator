@@ -1,9 +1,12 @@
 """
 Build a causal discovery dataset from the workflow simulator.
 
-Runs repeated simulations with no agents, collects averaged metrics per run as
-CSV rows, computes the NOTEARS causal graph after each run, and stops when the
-graph structure converges between consecutive estimates.
+Runs repeated simulations, collects averaged metrics per run as CSV rows,
+computes the NOTEARS causal graph after each run, and stops when the graph
+structure converges between consecutive estimates.
+
+By default, this builder randomly perturbs service thread counts at eval
+boundaries to improve causal identifiability of control variables.
 
 Usage:
     python build_causal_dataset.py [--config config.yaml] [--output causal_dataset.csv]
@@ -21,7 +24,7 @@ from pathlib import Path
 from simulator.simulation import Simulation
 from simulator.application import Application
 from simulator.infrastructure import Node
-from causal_discovery import causal_discovery, get_binary_graph
+from causality.causal_discovery import causal_discovery, get_binary_graph
 from plot_causal_graph import plot_causal_graph
 
 
@@ -30,16 +33,29 @@ from plot_causal_graph import plot_causal_graph
 # ---------------------------------------------------------------------------
 
 class MetricsCollector:
-    """Captures accumulated + instant metrics from each eval window."""
+    """Captures eval-window metrics and optionally perturbs thread counts."""
 
-    def __init__(self):
+    def __init__(self, perturb_threads: bool, perturb_prob: float, thread_min: int, thread_max: int):
         self.windows: list = []
+        self.perturb_threads = bool(perturb_threads)
+        self.perturb_prob = float(np.clip(perturb_prob, 0.0, 1.0))
+        self.thread_min = int(max(1, thread_min))
+        self.thread_max = int(max(self.thread_min, thread_max))
 
     def on_eval(self, idx, service, accumulated, instant):
         # Called once per service per eval window; we only need one copy per window
         if idx == 0:
             self.windows.append((accumulated, instant))
-        return None  # no action taken
+
+        if not self.perturb_threads:
+            return None
+
+        if np.random.random() > self.perturb_prob:
+            return None
+
+        # Randomly rescale service thread count in [thread_min, thread_max].
+        new_threads = int(np.random.randint(self.thread_min, self.thread_max + 1))
+        return {"cpu": new_threads}
 
     def reset(self):
         self.windows.clear()
@@ -141,6 +157,14 @@ def main():
                              "to declare convergence (default: 30)")
     parser.add_argument("--seed", type=int, default=None,
                         help="Random seed (overrides config)")
+    parser.add_argument("--no-perturb-threads", action="store_false", dest="perturb_threads",
+                        help="Disable random thread perturbations during data collection")
+    parser.add_argument("--perturb-prob", type=float, default=0.50,
+                        help="Probability of perturbing a service at each eval event (default: 0.50)")
+    parser.add_argument("--thread-min", type=int, default=1,
+                        help="Minimum thread count when perturbing (default: 1)")
+    parser.add_argument("--thread-max", type=int, default=4,
+                        help="Maximum thread count when perturbing (default: 4)")
     args = parser.parse_args()
 
     # --- Load config (topology + infrastructure + simulation only) ----------
@@ -179,10 +203,13 @@ def main():
         s.threads = 1
     app.reset()
 
-    # Register collector as the agent for service 0 only; no other service
-    # will have an agent, so the simulator skips them silently.
-    collector = MetricsCollector()
-    agents = {0: collector}
+    collector = MetricsCollector(
+        perturb_threads=args.perturb_threads,
+        perturb_prob=args.perturb_prob,
+        thread_min=args.thread_min,
+        thread_max=args.thread_max,
+    )
+    agents = {s.id: collector for s in app.services}
 
     # --- Dataset accumulation loop -------------------------------------------
     rows: list  = []
@@ -198,6 +225,12 @@ def main():
     print(f"  Min/max samples: {args.min_samples} / {args.max_samples}")
     print(f"  Convergence threshold: {args.convergence_threshold}  "
           f"(window: {args.convergence_window} consecutive)")
+    print(
+        "  Thread perturbation: "
+        f"enabled={args.perturb_threads} "
+        f"prob={args.perturb_prob:.2f} "
+        f"range=[{args.thread_min}, {args.thread_max}]"
+    )
     print()
 
     consecutive_stable = 0

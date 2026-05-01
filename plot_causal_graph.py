@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from pathlib import Path
 
-from causal_discovery import get_binary_graph
+from causality.causal_discovery import get_binary_graph
 
 
 # ---------------------------------------------------------------------------
@@ -215,7 +215,7 @@ def plot_causal_graph(
 if __name__ == "__main__":
     import argparse
     import pandas as pd
-    from causal_discovery import causal_discovery
+    from causality.causal_discovery import causal_discovery
 
     parser = argparse.ArgumentParser(description="Plot causal graph from CSV")
     parser.add_argument("csv", help="Path to CSV dataset")

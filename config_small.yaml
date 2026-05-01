@@ -1,0 +1,52 @@
+topology:
+  n_services: 2
+  workflows:
+    - id: 0
+      lam:
+        0: 0.7
+        20: 1.1
+      root_service: 0
+      edges:
+        - [0, 1]
+
+infrastructure:
+  n_nodes: 2
+  cpu_max: 3
+  ram: 8
+  freq: 1000
+
+simulation:
+  iterations: 120
+  timeout: 600000
+  eval_interval: 10.0
+  seed: 42
+
+rl:
+  epsilon: 0.30
+  epsilon_min: 0.05
+  epsilon_decay: 0.992
+  alpha: 0.10
+  gamma: 0.9
+
+training:
+  n_episodes: 300
+  eval_greedy_every: 10
+
+control:
+  agent_controls_replicas: true
+  agent_controls_placement: false
+  agent_control_assignments:
+    s1.scaling: agent1
+    s2.scaling: agent1
+
+reward:
+  e2e_lat_target: 8.0
+  reward_cpu_weight: 0.50
+  reward_lat_viol_weight: 0.50
+  agents:
+    agent1:
+      workflows:
+        0: 0.60
+      nodes:
+        0: 0.20
+        1: 0.20

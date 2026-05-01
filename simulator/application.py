@@ -142,15 +142,12 @@ class Application():
 
             {
                 "n_services": 4,
-                "workflows": [
-                    {
-                        "id": 0,
-                        "lam": 0.10,          # Poisson arrival rate (optional)
-                        "root_service": 0,    # entry-point service ID
-                        "edges": [(0, 1)],    # (caller_service_id, callee_service_id)
-                    },
-                    ...
-                ],
+                "n_workflows": 4,
+                "workflow_template": {
+                    "lam": 0.10,          # Poisson arrival rate (optional)
+                    "root_service": 0,    # entry-point service ID
+                    "edges": [(0, 1)],    # (caller_service_id, callee_service_id)
+                },
             }
 
         Each (caller, callee) edge means the caller service makes a downstream
@@ -162,7 +159,24 @@ class Application():
         for s in range(n_services):
             self.services.append(Service(s))
 
-        wf_specs = topology["workflows"]
+        wf_specs = topology.get("workflows")
+        if wf_specs is None:
+            workflow_template = topology.get("workflow_template")
+            if workflow_template is None:
+                raise ValueError(
+                    "topology must define either 'workflows' or 'workflow_template'"
+                )
+            n_workflows = int(topology.get("n_workflows", 1))
+            if n_workflows <= 0:
+                raise ValueError("topology.n_workflows must be greater than 0")
+            wf_specs = []
+            for wf_id in range(n_workflows):
+                spec = dict(workflow_template)
+                if isinstance(spec.get("lam"), dict):
+                    spec["lam"] = dict(spec["lam"])
+                spec["id"] = wf_id
+                wf_specs.append(spec)
+
         print("Tasktrees: " + str(len(wf_specs)))
         for spec in wf_specs:
             wf = Workflow(self, spec["id"], self.task_graph, self.tasks, n_services, spec=spec)
