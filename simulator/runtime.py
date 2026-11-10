@@ -82,6 +82,8 @@ class TaskInstance():
 
     def estimation(self,speed,t):
         load,next = self.next_load()
+        if speed <= 0:
+            return float('inf'), next
         return t + float(load)/speed,next
 
     def isActive(self):

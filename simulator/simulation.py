@@ -78,9 +78,7 @@ class Simulation():
                 #    print("Active services: "+str([ss.id for ss in s.node.active_services]))
                 #    print("Running tasks: "+str([len(ss.running_tasks) for ss in s.node.active_services]))
                 total_threads = sum([len(ss.running_tasks) for ss in s.node.active_services])
-                overhead = getattr(s.node, "thread_cpu_overhead", 0.0)
-                effective_threads = total_threads * (1.0 + overhead)
-                usage = min(effective_threads, s.node.cpu)
+                usage = min(total_threads, s.node.cpu)
                 #if DEBUG:
                 #    print("Threads: "+str(total_threads))
                 #    print("Usage: "+str(usage))

@@ -59,10 +59,10 @@ class Service():
         total_threads = sum([len(s.running_tasks) for s in self.node.active_services])
         if total_threads <= 0:
             return self.node.freq
-        overhead = getattr(self.node, "thread_cpu_overhead", 0.0)
-        effective_threads = total_threads * (1.0 + overhead)
-        power = min(float(self.node.cpu) / effective_threads,1.0)
-        return power * self.node.freq
+        delta = getattr(self.node, "thread_cpu_overhead", 0.0)
+        reduced_freq = max(self.node.freq - delta * total_threads, 0.0)
+        power = min(float(self.node.cpu) / total_threads, 1.0)
+        return power * reduced_freq
 
     def get_queue_size(self):
         return self.queue.qsize()+len(self.running_tasks)
